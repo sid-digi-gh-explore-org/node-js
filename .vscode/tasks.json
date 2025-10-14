@@ -1,0 +1,11 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Apply products_patch.diff",
+      "type": "shell",
+      "command": "git apply products_patch.diff",
+      "problemMatcher": []
+    }
+  ]
+}
