@@ -58,6 +58,8 @@ app.use('', products);
 app.use('', login);
 app.use('', vuln_zip);
 app.use('', vuln_jwt);
+var vuln_sqli = require('./routes/vuln_sqli');
+app.use('', vuln_sqli);
 
 
 // catch 404 and forward to error handler
