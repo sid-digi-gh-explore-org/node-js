@@ -14,6 +14,7 @@ var init_db = require('./model/init_db');
 var login = require('./routes/login');
 var products = require('./routes/products');
 var vuln_zip = require('./routes/vuln_zip');
+var vuln_jwt = require('./routes/vuln_jwt');
 
 var app = express();
 
@@ -56,6 +57,7 @@ app.use(session({
 app.use('', products);
 app.use('', login);
 app.use('', vuln_zip);
+app.use('', vuln_jwt);
 
 
 // catch 404 and forward to error handler
