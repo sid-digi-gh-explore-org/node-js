@@ -1,0 +1,12 @@
+name: Sample CI
+
+on:
+  push:
+    branches: [main]  # You can adjust the branch if needed
+
+jobs:
+  sample-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Print success message
+        run: echo "Sample CI workflow passed successfully!"
