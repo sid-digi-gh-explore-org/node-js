@@ -1,0 +1,106 @@
+name: DigiCert Code Scan
+
+on:
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ${{ (matrix.language == 'swift' && 'macos-latest') || 'ubuntu-latest' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: Java
+            build-mode: none
+          - language: JavaScript
+            build-mode: none
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{matrix.language}}'
+          upload: false
+          output: "codeql-${{ matrix.language }}.sarif"
+
+      - name: Upload SARIF result as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-${{ matrix.language }}
+          path: codeql-${{ matrix.language }}.sarif
+          
+  gitleaks-analyze:
+    name: Gitleaks Scan (SARIF)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install jq
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y jq
+
+      - name: Install gitleaks (OSS)
+        env:
+          GITLEAKS_VERSION: 8.18.4
+        run: |
+          set -e
+          curl -fsSL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tar -xzf gitleaks.tar.gz
+          test -f gitleaks && chmod +x gitleaks && sudo mv gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run Gitleaks (SARIF output)
+        run: |
+          gitleaks detect \
+            --source . \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --no-banner \
+            --redact \
+            --no-git || true
+
+      - name: Upload Gitleaks SARIF as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-sarif
+          path: gitleaks.sarif
+
+  zip-sarif:
+    name: Zip All SARIF Results
+    runs-on: ubuntu-latest
+    needs: [analyze, gitleaks-analyze]
+    steps:
+      - name: Download all SARIF artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: "*-sarif*"
+          path: ./sarif-results
+          merge-multiple: true
+
+      - name: Zip SARIF results
+        run: |
+          cd sarif-results
+          find . -name "*.sarif" -print | zip ../codeql-sarif-results.zip -@
+          
+      - name: Delete all SARIF files after zipping
+        run: |
+          find ./sarif-results -name "*.sarif" -delete
+
+      - name: Upload zipped SARIF results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif-results
+          path: codeql-sarif-results.zip
